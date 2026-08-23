@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 BLE Kontroler Dwukierunkowy</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f2f5; }
+        button { font-size: 18px; padding: 15px 30px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; }
+        .connect { background-color: #007bff; }
+        .cmd1 { background-color: #28a745; }
+        .cmd2 { background-color: #dc3545; }
+        .cmd3 { background-color: #ffc107; color: black; }
+        .cmd4 { background-color: #17a2b8; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; color: #666666; }
+        #status { margin: 10px; font-weight: bold; color: #555; }
+        #espStatus { margin: 20px; padding: 15px; background: #fff; border-radius: 5px; border: 1px solid #ddd; display: inline-block; font-size: 18px; color: #333; min-width: 250px; }
+    </style>
+</head>
+<body>
+
+    <h1>ESP32 BLE Kontroler Dwukierunkowy</h1>
+    <div id="status">Status połączenia: Rozłączono</div>
+    
+    <!-- Pole wyświetlające dane zwrotne z ESP32 -->
+    <div id="espStatus">Odebrany status: Brak danych</div>
+    <br><br>
+    
+    <button id="connectBtn" class="connect" onclick="connectBLE()">Połącz z ESP32</button>
+    <br><br>
+    
+    <button class="cmd1" onclick="sendCommand('A')" disabled>Komenda A</button>
+    <button class="cmd2" onclick="sendCommand('B')" disabled>Komenda B</button>
+    <button class="cmd3" onclick="sendCommand('C')" disabled>Komenda C</button>
+    <button class="cmd4" onclick="sendCommand('D')" disabled>Komenda D</button>
+
+    <script>
+        const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+        const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+        
+        let bleCharacteristic = null;
+        let bleDevice = null;
+
+        async function connectBLE() {
+            try {
+                document.getElementById('status').innerText = "Status połączenia: Szukanie...";
+                
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+
+                document.getElementById('status').innerText = "Status połączenia: Łączenie...";
+                const server = await bleDevice.gatt.connect();
+                
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                bleCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                // 1. Włączenie powiadomień (odbiór danych z ESP32)
+                await bleCharacteristic.startNotifications();
+                // 2. Przypisanie funkcji obsługującej przychodzące dane
+                bleCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+
+                document.getElementById('status').innerText = "Status połączenia: Połączono!";
+                toggleButtons(false);
+                
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                
+            } catch (error) {
+                console.error(error);
+                document.getElementById('status').innerText = "Status połączenia: Błąd połączenia";
+                toggleButtons(true);
+            }
+        }
+
+        // Funkcja wywoływana, gdy ESP32 wyśle nowy status
+        function handleNotifications(event) {
+            const value = event.target.value;
+            const decoder = new TextDecoder('utf-8');
+            const statusString = decoder.decode(value);
+            
+            // Aktualizacja pola na stronie www
+            document.getElementById('espStatus').innerText = `Odebrany status: ${statusString}`;
+        }
+
+        async function sendCommand(commandChar) {
+            if (!bleCharacteristic) return;
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(commandChar);
+                await bleCharacteristic.writeValue(data);
+                console.log(`Wysłano: ${commandChar}`);
+            } catch (error) {
+                console.error("Błąd wysyłania:", error);
+            }
+        }
+
+        function onDisconnected() {
+            document.getElementById('status').innerText = "Status połączenia: Rozłączono";
+            document.getElementById('espStatus').innerText = "Odebrany status: Brak danych";
+            toggleButtons(true);
+        }
+
+        function toggleButtons(disabled) {
+            const buttons = document.querySelectorAll('button:not(.connect)');
+            buttons.forEach(btn => btn.disabled = disabled);
+            document.getElementById('connectBtn').disabled = !disabled;
+        }
+    </script>
+</body>
+  </html>
+  
