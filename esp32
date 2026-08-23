@@ -1,0 +1,69 @@
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+
+// Match these UUIDs with your JavaScript code
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+class MyCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      std::string value = pCharacteristic->getValue();
+
+      if (value.length() > 0) {
+        char cmd = value[0]; // Get the first character received
+        Serial.print("Received Command: ");
+        Serial.println(cmd);
+
+        // Handle your 4 commands here
+        if (cmd == 'A') {
+          Serial.println("Action A executed!");
+        } else if (cmd == 'B') {
+          Serial.println("Action B executed!");
+        } else if (cmd == 'C') {
+          Serial.println("Action C executed!");
+        } else if (cmd == 'D') {
+          Serial.println("Action D executed!");
+        }
+      }
+    }
+};
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Starting BLE Server...");
+
+  // Initialize BLE device
+  BLEDevice::init("ESP32_Web_Control");
+
+  // Create BLE Server
+  BLEServer *pServer = BLEDevice::createServer();
+
+  // Create BLE Service
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // Create BLE Characteristic with WRITE properties
+  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+
+  // Assign the callbacks to handle incoming data
+  pCharacteristic->setCallbacks(new MyCallbacks());
+
+  // Start the service
+  pService->start();
+
+  // Start advertising so the browser can find it
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("Characteristic defined! Ready to connect.");
+}
+
+void loop() {
+  delay(2000);
+}
