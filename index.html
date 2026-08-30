@@ -58,7 +58,7 @@
             log("Szukanie urządzeń BLE...");
             try {
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'ESP32_Web_BLE' }],
+                    filters: [{ name: 'TABLICA_BLE' }],
                     optionalServices: [SERVICE_UUID]
                 });
 
