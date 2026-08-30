@@ -2,32 +2,115 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Web BLE Chat</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f9; }
-        button { padding: 10px 20px; font-size: 16px; margin: 10px; cursor: pointer; border-radius: 5px; border: none; background-color: #007bff; color: white; }
-        button:disabled { background-color: #cccccc; }
-        input { padding: 10px; font-size: 16px; width: 200px; border-radius: 5px; border: 1px solid #ccc; }
-        #terminal { width: 80%; max-width: 500px; height: 200px; border: 1px solid #ccc; margin: 20px auto; padding: 10px; text-align: left; overflow-y: scroll; background: white; }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tablica Wyników - Siatkówka</title>
+    <style>			
+        body {
+            font-family: "Lucida Console", "Courier New", monospace;
+			background-color: #1a1a1a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .scoreboard {
+            font-family: "Lucida Console", "Courier New", monospace;
+			display: flex;
+            gap: 40px;
+            background: #333;
+            padding: 40px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .team {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .team-name {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .score {
+			font-family: "Lucida Console", "Courier New", monospace;
+			font-size: 4rem;
+			color: #ff0000; /* Klasyczny czerwony LED */
+			text-shadow: 0 0 20px rgba(255, 0, 0, 0.7); /* Efekt świecenia */
+			background: #000;
+			padding: 10px 30px;
+			border-radius: 10px;
+			border: 4px solid #222;
+			cursor: pointer; 
+			min-width: 200px;
+			text-align: center;
+			margin: 10px 0;
+		}
+
+		.score-container {
+			position: relative;
+			display: inline-block;
+		}
+        .sets {
+            font-size: 2rem;
+            color: #2ecc71;
+            margin-bottom: 20px;
+        }
+        .controls{
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: 0.2s;
+        }
+        .controls:hover {
+            background: #777;
+        }
+        .reset-btn {
+			margin-left: 20px;
+			margin-right: 20px;
+            background: #e74c3c !important;
+        }
+		#terminal { width: 80%; max-width: 500px; height: 200px; border: 1px solid #ccc; margin: 20px auto; padding: 10px; text-align: left; overflow-y: scroll; background: black; }
         .status { font-weight: bold; color: #555; }
-    </style>
+	</style>
 </head>
 <body>
-
-    <h1>ESP32 Web BLE</h1>
-    <p class="status">Status: <span id="status">Rozłączono</span></p>
-
-    <button id="connectBtn">Połącz z ESP32</button>
-    <button id="disconnectBtn" disabled>Rozłącz</button>
-
-    <br><br>
-
-    <input type="text" id="inputData" placeholder="Wpisz tekst do wysłania" disabled>
-    <button id="sendBtn" disabled>Wyślij</button>
-
-    <h3>Odebrane wiadomości:</h3>
-    <div id="terminal"></div>
+    <TABLE class="scoreboard" style="box-shadow: 10px 10px 5px -2px #888;">
+	 <TR >
+	  <TD>
+        <div class="team">
+            <button class="score" id="pktas" onclick="changeScoreAP()">0</button>      
+        </div>
+       </TD>
+	   <TD>
+        <div class="team">
+            <button class="score" id="pktbs" onclick="changeScoreBP()">0</button>
+		</div>
+	</TD>
+	</TR>
+	<TR>
+	<TD colspan=2>
+	<button class="controls" onclick="changeScoreAM()">-1</button>
+    <button class="reset-btn" style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" onclick="resetAll()">RESET</button>
+	<button class="reset-btn" style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="odwroc" onclick="changeside()">0</button>
+	<button class="controls" onclick="changeScoreBM()">-1</button>
+	</TD></TR>
+	<TR>
+	<TD colspan=2>
+    <button class="controls"  style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="connectBtn">Połącz</button>
+	<span style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="status">R</span>
+    <button class="controls"   style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="disconnectBtn" disabled>Rozłącz</button>
+	</TD></TR>	
+	</TABLE>
 
     <script>
         // Definicje UUID – muszą być identyczne jak w ESP32
@@ -55,7 +138,7 @@
 
         // Łączenie z urządzeniem BLE
         connectBtn.addEventListener('click', async () => {
-            log("Szukanie urządzeń BLE...");
+            //log("Szukanie urządzeń BLE...");
             try {
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [{ name: 'TABLICA_BLE' }],
@@ -63,34 +146,32 @@
                 });
 
                 deviceCache = device;
-                statusText.textContent = "Łączenie...";
-                log(`Znaleziono: ${device.name}. Łączenie z serwerem GATT...`);
+                statusText.textContent = "Ł";
+                //log(`Znaleziono: ${device.name}. Łączenie z serwerem GATT...`);
 
                 const server = await device.gatt.connect();
-                log("Połączono z serwerem GATT. Pobieranie usługi...");
+                //log("Połączono z serwerem GATT. Pobieranie usługi...");
 
                 const service = await server.getPrimaryService(SERVICE_UUID);
-                log("Pobrano usługę. Pobieranie charakterystyki...");
+                //log("Pobrano usługę. Pobieranie charakterystyki...");
 
                 characteristicCache = await service.getCharacteristic(CHARACTERISTIC_UUID);
-                log("Charakterystyka gotowa.");
+                //log("Charakterystyka gotowa.");
 
                 // Włączenie powiadomień (odbieranie danych z ESP32)
                 await characteristicCache.startNotifications();
                 characteristicCache.addEventListener('characteristicvaluechanged', handleNotifications);
 
-                statusText.textContent = "Połączono";
+                statusText.textContent = "P";
                 statusText.style.color = "green";
                 connectBtn.disabled = true;
                 disconnectBtn.disabled = false;
-                inputData.disabled = false;
-                sendBtn.disabled = false;
 
                 device.addEventListener('gattserverdisconnected', onDisconnected);
 
             } catch (error) {
-                log("Błąd: " + error);
-                statusText.textContent = "Błąd połączenia";
+                //log("Błąd: " + error);
+                statusText.textContent = "B";
                 statusText.style.color = "red";
             }
         });
@@ -100,24 +181,37 @@
             const value = event.target.value;
             const decoder = new TextDecoder('utf-8');
             const decodedString = decoder.decode(value);
-            log("<- " + decodedString);
+            //log("<- " + decodedString);
+			
+			const odw = document.getElementById('odwroc');
+			odw.textContent = decodedString[0];
+			const button = document.getElementById('odwroc');
+			if (odw.textContent == "1") button.style.background = 'green'; else button.style.background = 'red';
+			pktas = decodedString[2] + decodedString[3];
+			const buA = document.getElementById('pktas');
+			buA.textContent = pktas;
+			pktbs = decodedString[5] + decodedString[6];
+			const buB = document.getElementById('pktbs');
+			buB.textContent = pktbs;
+			
         }
 
-        // Wysyłanie danych do ESP32
-        sendBtn.addEventListener('click', async () => {
-            const text = inputData.value;
+		
+		        // Wysyłanie danych do ESP32
+        function sendtoesp(kome) {
+            const text = kome;
             if (!text || !characteristicCache) return;
 
             try {
                 const encoder = new TextEncoder('utf-8');
                 const data = encoder.encode(text);
-                await characteristicCache.writeValueWithResponse(data);
-                log("-> Wysłano: " + text);
+                characteristicCache.writeValueWithResponse(data);
+                //log("-> Wysłano: " + text);
                 inputData.value = "";
             } catch (error) {
-                log("Błąd wysyłania: " + error);
+                //log("Błąd wysyłania: " + error);
             }
-        });
+        }
 
         // Rozłączanie manualne
         disconnectBtn.addEventListener('click', () => {
@@ -128,16 +222,44 @@
 
         // Reakcja na rozłączenie urządzenia
         function onDisconnected() {
-            log("Urządzenie zostało rozłączone.");
-            statusText.textContent = "Rozłączono";
+            //log("Urządzenie zostało rozłączone.");
+            statusText.textContent = "R";
             statusText.style.color = "black";
             connectBtn.disabled = false;
             disconnectBtn.disabled = true;
-            inputData.disabled = true;
-            sendBtn.disabled = true;
             characteristicCache = null;
             deviceCache = null;
         }
+		
+		
+		function resetAll() {
+            if(confirm("Czy na pewno zresetować ?")) {
+                sendtoesp("R");
+            }
+        }
+		
+		function changeside() {
+			sendtoesp("M");
+			const odw = document.getElementById('odwroc');
+			const button = document.getElementById('odwroc');
+			if (odw.textContent == "1") button.style.background = 'green'; else button.style.background = 'red';
+		}
+
+		function changeScoreAP() {
+			sendtoesp("P1");
+		}
+
+		function changeScoreBP() {
+			sendtoesp("P2");
+		}
+
+		function changeScoreAM() {
+			sendtoesp("P3");
+		}
+
+		function changeScoreBM() {
+			sendtoesp("P4");
+		}
     </script>
 </body>
 </html>
