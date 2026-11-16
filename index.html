@@ -13,15 +13,15 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 80vh;
+            height: 100vh;
             margin: 0;
         }
         .scoreboard {
             font-family: "Lucida Console", "Courier New", monospace;
 			display: flex;
-            gap: 30px;
+            gap: 40px;
             background: #333;
-            padding: 30px;
+            padding: 40px;
             border-radius: 50px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             text-align: center;
@@ -39,7 +39,7 @@
         }
         .score {
 			font-family: "Lucida Console", "Courier New", monospace;
-			font-size: 5rem;
+			font-size: 4rem;
 			color: #ff0000; /* Klasyczny czerwony LED */
 			text-shadow: 0 0 20px rgba(255, 0, 0, 0.7); /* Efekt świecenia */
 			background: #000;
@@ -47,7 +47,7 @@
 			border-radius: 10px;
 			border: 4px solid #222;
 			cursor: pointer; 
-			min-width: 150px;
+			min-width: 200px;
 			text-align: center;
 			margin: 10px 0;
 		}
@@ -88,25 +88,25 @@
 	 <TR >
 	  <TD>
         <div class="team">
-            <button class="score" id="pktas" onclick="changeScoreAP()">00</button>      
+            <button class="score" id="pktas" onclick="changeScoreAP()">0</button>      
         </div>
        </TD>
 	   <TD>
         <div class="team">
-            <button class="score" id="pktbs" onclick="changeScoreBP()">00</button>
+            <button class="score" id="pktbs" onclick="changeScoreBP()">0</button>
 		</div>
 	</TD>
 	</TR>
 	<TR>
 	<TD colspan=2>
 	<button class="controls" onclick="changeScoreAM()">-1</button>
-    <button class="reset-btn" style="padding: 15px 20px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" onclick="resetAll()">RESET</button>
-	<button class="reset-btn" style="padding: 15px 20px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="odwroc" onclick="changeside()">0</button>
+    <button class="reset-btn" style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" onclick="resetAll()">RESET</button>
+	<button class="reset-btn" style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="odwroc" onclick="changeside()">0</button>
 	<button class="controls" onclick="changeScoreBM()">-1</button>
 	</TD></TR>
 	<TR>
 	<TD colspan=2>
-    <button class="controls"  style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="connectBtn">Połącz</button>
+    <button class="controls"  style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="connectBtn" onclick="connectButton()">Połącz</button>
 	<span style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="status">R</span>
     <button class="controls"   style="padding: 15px 30px; font-size: 1rem; color: white; border-radius: 20px; cursor: pointer; border: none;" id="disconnectBtn" disabled>Rozłącz</button>
 	</TD></TR>	
@@ -114,53 +114,52 @@
 
     <script>
         // Definicje UUID – muszą być identyczne jak w ESP32
-        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-        const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+        const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+		const CHAR_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
         let deviceCache = null;
         let characteristicCache = null;
 
-        const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
         const sendBtn = document.getElementById('sendBtn');
         const inputData = document.getElementById('inputData');
         const statusText = document.getElementById('status');
-        const terminal = document.getElementById('terminal');
-
-        // Funkcja logowania do wirtualnego terminala na stronie
-        function log(message) {
-            const p = document.createElement('p');
-            p.style.margin = "4px 0";
-            p.textContent = message;
-            terminal.appendChild(p);
-            terminal.scrollTop = terminal.scrollHeight;
-        }
 
         // Łączenie z urządzeniem BLE
-        connectBtn.addEventListener('click', async () => {
-            //log("Szukanie urządzeń BLE...");
+        function connectButton() {
+			requestDevice();
+		}
+		
+		async function requestDevice() {
+		console.log("Szukanie urządzeń BLE...");
             try {
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'TABLICA_BLE' }],
-                    optionalServices: [SERVICE_UUID]
+                    filters: [{ services: [SERVICE_UUID] }]
                 });
 
                 deviceCache = device;
                 statusText.textContent = "Ł";
-                //log(`Znaleziono: ${device.name}. Łączenie z serwerem GATT...`);
+                console.log(`Znaleziono: ${device.name}. Łączenie z serwerem GATT...`);
 
                 const server = await device.gatt.connect();
-                //log("Połączono z serwerem GATT. Pobieranie usługi...");
+                console.log("Połączono z serwerem GATT. Pobieranie usługi...");
+				console.log('Device: ' + JSON.stringify(device));
 
                 const service = await server.getPrimaryService(SERVICE_UUID);
-                //log("Pobrano usługę. Pobieranie charakterystyki...");
+                console.log("Pobrano usługę. Pobieranie charakterystyki...");
 
-                characteristicCache = await service.getCharacteristic(CHARACTERISTIC_UUID);
-                //log("Charakterystyka gotowa.");
+                const notifyC = await service.getCharacteristic(CHAR_UUID_TX);
+                console.log("Charakterystyka TX gotowa.");
+				
+				const writeC = await service.getCharacteristic(CHAR_UUID_RX);
+                console.log("Charakterystyka RX gotowa.");
+				
+				//console.log(notifyC);
 
                 // Włączenie powiadomień (odbieranie danych z ESP32)
-                await characteristicCache.startNotifications();
-                characteristicCache.addEventListener('characteristicvaluechanged', handleNotifications);
+                await notifyC.startNotifications();
+                notifyC.addEventListener('characteristicvaluechanged', handleNotifications);
 
                 statusText.textContent = "P";
                 statusText.style.color = "green";
@@ -170,18 +169,18 @@
                 device.addEventListener('gattserverdisconnected', onDisconnected);
 
             } catch (error) {
-                //log("Błąd: " + error);
+                console.log("Błąd: " + error);
                 statusText.textContent = "B";
                 statusText.style.color = "red";
             }
-        });
+        };
 
         // Obsługa przychodzących danych z ESP32 (funkcja Notify)
         function handleNotifications(event) {
             const value = event.target.value;
             const decoder = new TextDecoder('utf-8');
             const decodedString = decoder.decode(value);
-            //log("<- " + decodedString);
+            console.log("<- " + decodedString);
 			
 			const odw = document.getElementById('odwroc');
 			odw.textContent = decodedString[0];
@@ -196,20 +195,19 @@
 			
         }
 
-		
-		        // Wysyłanie danych do ESP32
-        function sendtoesp(kome) {
+		// Wysyłanie danych do ESP32
+        async function sendtoesp(kome) {
             const text = kome;
-            if (!text || !characteristicCache) return;
+            if (!text || !writeC) return;
 
             try {
                 const encoder = new TextEncoder('utf-8');
                 const data = encoder.encode(text);
-                characteristicCache.writeValueWithResponse(data);
-                //log("-> Wysłano: " + text);
+                await writeC.writeValue(data);
+                console.log("-> Wysłano: " + text);
                 inputData.value = "";
             } catch (error) {
-                //log("Błąd wysyłania: " + error);
+                console.log("Błąd wysyłania: " + error);
             }
         }
 
@@ -227,7 +225,7 @@
             statusText.style.color = "black";
             connectBtn.disabled = false;
             disconnectBtn.disabled = true;
-            characteristicCache = null;
+            notifyC = null;
             deviceCache = null;
         }
 		
